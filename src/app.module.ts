@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { SharedModule } from './shared/shared.module';
 import sessionConfig from './config/session.config';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import sessionConfig from './config/session.config';
     PrismaModule,
     AuthModule,
     SharedModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [AppService],

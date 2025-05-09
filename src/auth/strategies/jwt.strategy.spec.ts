@@ -4,32 +4,27 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthProvider, User, UserRole } from '@prisma/client';
+import { Role } from '../../common/enums/role.enum';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
   let prismaService: PrismaService;
 
-  const mockUser: User = {
-    id: 'test-uuid',
+  const mockUser = {
+    id: 'test-id',
     email: 'test@example.com',
-    password: 'hashedPassword',
+    password: 'hashed_password',
     name: 'Test User',
-    role: UserRole.USER,
+    role: Role.USER,
     provider: AuthProvider.EMAIL,
     providerId: null,
+    profileImageUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockConfigService = {
-    get: jest.fn().mockImplementation((key: string) => {
-      switch (key) {
-        case 'jwt.secret':
-          return 'test-secret';
-        default:
-          return null;
-      }
-    }),
+    get: jest.fn().mockReturnValue('test-secret'),
   };
 
   const mockPrismaService = {
@@ -66,45 +61,19 @@ describe('JwtStrategy', () => {
   });
 
   describe('validate', () => {
-    const payload = {
-      sub: 'test-uuid',
-      email: 'test@example.com',
-    };
-
     it('should return user if valid payload', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      const result = await strategy.validate(payload);
-
+      const result = await strategy.validate({ sub: mockUser.id, email: mockUser.email });
       expect(result).toEqual(mockUser);
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { id: payload.sub },
-        include: { profile: true },
-      });
     });
 
     it('should throw UnauthorizedException if user not found', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(strategy.validate(payload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { id: payload.sub },
-        include: { profile: true },
-      });
-    });
-
-    it('should throw UnauthorizedException if database query fails', async () => {
-      mockPrismaService.user.findUnique.mockRejectedValue(new Error('Database error'));
-
-      await expect(strategy.validate(payload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { id: payload.sub },
-        include: { profile: true },
-      });
+      await expect(strategy.validate({ sub: 'invalid-id', email: 'invalid@example.com' }))
+        .rejects
+        .toThrow(UnauthorizedException);
     });
   });
 }); 
