@@ -59,6 +59,17 @@ Once the application is running, you can access the Swagger documentation at:
 http://localhost:3001/api/docs
 ```
 
+## Mobile Integration
+
+For detailed instructions on implementing authentication in your React Native mobile application, please refer to our [Authentication Implementation Guide](docs/auth-implementation.md).
+
+The guide covers:
+- Setting up authentication in React Native
+- Implementing social login (Google & Facebook)
+- Handling JWT tokens
+- Error handling and best practices
+- Code examples and troubleshooting
+
 ## Available Scripts
 
 - `npm run start:dev` - Start the development server
