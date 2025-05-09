@@ -1,13 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthController } from '../controllers/auth.controller';
+import { AuthController, IRequestWithUser } from '../controllers/auth.controller';
 import { RegistrationService } from '../services/registration.service';
 import { Activity, AuthProvider, Gender, User, UserRole } from '@prisma/client';
 import { AuthService, IAuthTokens } from '../services/auth.service';
-import { Request } from 'express';
+import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 
-interface IRequestWithUser extends Request {
+type MockRequest = {
   user: User;
-}
+  session: {
+    userId?: string;
+  };
+};
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -41,6 +45,10 @@ describe('AuthController', () => {
     refreshToken: 'mock-refresh-token',
   };
 
+  const mockResponse = {
+    redirect: jest.fn(),
+  } as unknown as Response;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -55,6 +63,12 @@ describe('AuthController', () => {
           provide: AuthService,
           useValue: {
             handleSocialLogin: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue('http://localhost:3000'),
           },
         },
       ],
@@ -93,20 +107,26 @@ describe('AuthController', () => {
   });
 
   describe('social auth', () => {
-    const mockRequest = {
+    const mockRequest: MockRequest = {
       user: mockUser,
-    } as IRequestWithUser;
+      session: {
+        userId: undefined,
+      },
+    };
 
     it('should handle Google callback successfully', async () => {
       // Mock the service
       jest.spyOn(authService, 'handleSocialLogin').mockResolvedValue(mockAuthTokens);
 
       // Execute
-      const result = await controller.googleAuthCallback(mockRequest);
+      await controller.googleAuthCallback(mockRequest as unknown as IRequestWithUser, mockResponse);
 
       // Assert
-      expect(result).toEqual(mockAuthTokens);
       expect(authService.handleSocialLogin).toHaveBeenCalledWith(mockUser);
+      expect(mockRequest.session.userId).toBe(mockUser.id);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('http://localhost:3000/auth/callback?tokens='),
+      );
     });
 
     it('should handle Facebook callback successfully', async () => {
@@ -114,11 +134,14 @@ describe('AuthController', () => {
       jest.spyOn(authService, 'handleSocialLogin').mockResolvedValue(mockAuthTokens);
 
       // Execute
-      const result = await controller.facebookAuthCallback(mockRequest);
+      await controller.facebookAuthCallback(mockRequest as unknown as IRequestWithUser, mockResponse);
 
       // Assert
-      expect(result).toEqual(mockAuthTokens);
       expect(authService.handleSocialLogin).toHaveBeenCalledWith(mockUser);
+      expect(mockRequest.session.userId).toBe(mockUser.id);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('http://localhost:3000/auth/callback?tokens='),
+      );
     });
   });
 }); 

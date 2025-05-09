@@ -4,15 +4,19 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { SharedModule } from './shared/shared.module';
+import sessionConfig from './config/session.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      load: [sessionConfig],
     }),
     PrismaModule,
     AuthModule,
+    SharedModule,
   ],
   controllers: [AppController],
   providers: [AppService],

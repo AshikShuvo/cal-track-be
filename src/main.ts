@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as session from 'express-session';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -12,6 +13,19 @@ async function bootstrap(): Promise<void> {
 
   // Enable Prisma shutdown hooks
   await prismaService.enableShutdownHooks();
+
+  // Configure session middleware
+  const sessionConfig = configService.get('session');
+
+  app.use(
+    session({
+      secret: sessionConfig.secret,
+      resave: sessionConfig.resave,
+      saveUninitialized: sessionConfig.saveUninitialized,
+      name: sessionConfig.name,
+      cookie: sessionConfig.cookie,
+    }),
+  );
 
   // Enable validation
   app.useGlobalPipes(
@@ -31,25 +45,23 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(`${apiPrefix}/${apiVersion}`);
 
   // Enable CORS
-  app.enableCors();
+  app.enableCors({
+    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
+    credentials: true,
+  });
 
-  // Swagger configuration
+  // Configure Swagger
   const config = new DocumentBuilder()
-    .setTitle('Calorie Tracker API')
-    .setDescription('API documentation for the Calorie Tracker application')
+    .setTitle('CalTrack API')
+    .setDescription('The CalTrack API description')
     .setVersion('1.0')
     .addBearerAuth()
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('users', 'User management endpoints')
-    .addTag('nutrition', 'Nutrition tracking endpoints')
     .build();
-
+  
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
+  SwaggerModule.setup('docs', app, document);
 
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}/${apiPrefix}/${apiVersion}`);
-  console.log(`Swagger documentation is available at: http://localhost:${port}/${apiPrefix}/docs`);
 }
 
 bootstrap();
