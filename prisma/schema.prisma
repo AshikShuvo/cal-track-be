@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  FACEBOOK
+}
+
+enum Activity {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  VERY_ACTIVE
+  EXTREMELY_ACTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+// Models
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  name          String
+  password      String?     // Null for social auth
+  role          UserRole    @default(USER)
+  provider      AuthProvider @default(EMAIL)
+  providerId    String?     // For social auth
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  profile       Profile?
+  goals         Goal[]
+  foodLogs      FoodLog[]
+  following     Connection[] @relation("follower")
+  followers     Connection[] @relation("following")
+
+  @@index([email])
+  @@map("users")
+}
+
+model Profile {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  height        Float?    // in cm
+  weight        Float?    // in kg
+  activityLevel Activity  @default(MODERATE)
+  birthDate     DateTime?
+  gender        Gender?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Goal {
+  id            String    @id @default(uuid())
+  userId        String
+  startDate     DateTime
+  endDate       DateTime?
+  calorieTarget Int
+  proteinTarget Float?    // in grams
+  carbTarget    Float?    // in grams
+  fatTarget     Float?    // in grams
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startDate])
+  @@map("goals")
+}
+
+model FoodLog {
+  id            String    @id @default(uuid())
+  userId        String
+  name          String
+  portion       Float     // in grams/ml
+  mealType      MealType
+  consumedAt    DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nutrition     NutritionInfo?
+  image         Image?
+
+  @@index([userId, consumedAt])
+  @@map("food_logs")
+}
+
+model NutritionInfo {
+  id            String    @id @default(uuid())
+  foodLogId     String    @unique
+  calories      Int
+  protein       Float?    // in grams
+  carbs         Float?    // in grams
+  fat           Float?    // in grams
+  fiber         Float?    // in grams
+  sugar         Float?    // in grams
+  sodium        Float?    // in mg
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  foodLog       FoodLog   @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
+
+  @@map("nutrition_info")
+}
+
+model Image {
+  id            String    @id @default(uuid())
+  foodLogId     String    @unique
+  url           String
+  aiAnalysis    Json?     // Stores AI recognition results
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  foodLog       FoodLog   @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
+
+  @@map("images")
+}
+
+model Connection {
+  id            String    @id @default(uuid())
+  followerId    String
+  followingId   String
+  status        ConnectionStatus @default(PENDING)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  follower      User      @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following     User      @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("connections")
+}
