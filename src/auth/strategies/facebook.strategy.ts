@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy } from 'passport-facebook';
 import { PrismaService } from '../../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { AuthProvider, User } from '.prisma/client';
 
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
@@ -18,7 +18,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       clientSecret: configService.get<string>('FACEBOOK_CLIENT_SECRET') || '',
       callbackURL: configService.get<string>('FACEBOOK_CALLBACK_URL') || 'http://localhost:3000/auth/facebook/callback',
       scope: ['email'],
-      profileFields: ['id', 'emails', 'name'],
+      profileFields: ['id', 'emails', 'name', 'photos'],
     });
   }
 
@@ -43,13 +43,15 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         },
         update: {
           providerId: profile.id,
-          provider: 'FACEBOOK',
+          provider: AuthProvider.FACEBOOK,
+          profileImageUrl: profile.photos?.[0]?.value,
         },
         create: {
           email: profile.emails[0].value,
           name: `${profile.name.givenName} ${profile.name.familyName}`,
           providerId: profile.id,
-          provider: 'FACEBOOK',
+          provider: AuthProvider.FACEBOOK,
+          profileImageUrl: profile.photos?.[0]?.value,
           profile: {
             create: {
               activityLevel: 'MODERATE',

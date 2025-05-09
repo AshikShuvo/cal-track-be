@@ -18,6 +18,7 @@ describe('GoogleStrategy', () => {
     role: UserRole.USER,
     provider: AuthProvider.GOOGLE,
     providerId: 'google-123',
+    profileImageUrl: 'https://example.com/photo.jpg',
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -101,12 +102,14 @@ describe('GoogleStrategy', () => {
         update: {
           providerId: mockGoogleProfile.id,
           provider: 'GOOGLE',
+          profileImageUrl: mockGoogleProfile.photos![0].value,
         },
         create: {
           email: mockGoogleProfile.emails![0].value,
           name: `${mockGoogleProfile.name!.givenName} ${mockGoogleProfile.name!.familyName}`,
           providerId: mockGoogleProfile.id,
           provider: 'GOOGLE',
+          profileImageUrl: mockGoogleProfile.photos![0].value,
           profile: {
             create: {
               activityLevel: 'MODERATE',

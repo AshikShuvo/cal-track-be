@@ -1,6 +1,7 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, MaxLength, MinLength, IsDate } from 'class-validator';
 import { $Enums } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class RegisterDto {
   @ApiProperty({
@@ -78,4 +79,23 @@ export class RegisterDto {
   @IsEnum($Enums.Gender)
   @IsOptional()
   gender?: $Enums.Gender;
+
+  @ApiProperty({
+    description: 'User birth date',
+    example: '1990-01-01',
+    required: false,
+  })
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  birthDate?: Date;
+
+  @ApiProperty({
+    description: 'User activity level',
+    enum: $Enums.Activity,
+    default: $Enums.Activity.MODERATE,
+  })
+  @IsEnum($Enums.Activity)
+  @IsOptional()
+  activityLevel?: $Enums.Activity = $Enums.Activity.MODERATE;
 } 

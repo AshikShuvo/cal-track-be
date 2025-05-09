@@ -26,6 +26,7 @@ describe('AuthController', () => {
     role: UserRole.USER,
     provider: AuthProvider.EMAIL,
     providerId: null,
+    profileImageUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -56,7 +57,7 @@ describe('AuthController', () => {
         {
           provide: RegistrationService,
           useValue: {
-            registerUser: jest.fn(),
+            register: jest.fn(),
           },
         },
         {
@@ -84,25 +85,25 @@ describe('AuthController', () => {
   });
 
   describe('register', () => {
-    it('should successfully register a new user', async () => {
+    it('should register a new user successfully', async () => {
       // Mock the service
-      jest.spyOn(registrationService, 'registerUser').mockResolvedValue(mockUser);
+      jest.spyOn(registrationService, 'register').mockResolvedValue(mockUser);
 
       // Execute
       const result = await controller.register(mockRegisterDto);
 
       // Assert
-      expect(result).toEqual(mockUser);
-      expect(registrationService.registerUser).toHaveBeenCalledWith(mockRegisterDto);
+      expect(result).toBe(mockUser);
+      expect(registrationService.register).toHaveBeenCalledWith(mockRegisterDto);
     });
 
-    it('should throw error if registration fails', async () => {
+    it('should handle registration failure', async () => {
       // Mock the service
-      jest.spyOn(registrationService, 'registerUser').mockRejectedValue(new Error('Registration failed'));
+      jest.spyOn(registrationService, 'register').mockRejectedValue(new Error('Registration failed'));
 
-      // Execute & Assert
+      // Execute and Assert
       await expect(controller.register(mockRegisterDto)).rejects.toThrow('Registration failed');
-      expect(registrationService.registerUser).toHaveBeenCalledWith(mockRegisterDto);
+      expect(registrationService.register).toHaveBeenCalledWith(mockRegisterDto);
     });
   });
 

@@ -1,5 +1,33 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { $Enums } from '@prisma/client';
+import { Activity, AuthProvider, Gender, Profile, User, UserRole } from '@prisma/client';
+import { Exclude, Type } from 'class-transformer';
+
+export class ProfileResponseDto {
+  @ApiProperty({ example: 180 })
+  height?: number;
+
+  @ApiProperty({ example: 75 })
+  weight?: number;
+
+  @ApiProperty({ example: '1990-01-01' })
+  birthDate?: Date;
+
+  @ApiProperty({ enum: Gender })
+  gender?: Gender;
+
+  @ApiProperty({ enum: Activity })
+  activityLevel: Activity;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  constructor(partial: Partial<ProfileResponseDto>) {
+    Object.assign(this, partial);
+  }
+}
 
 export class UserResponseDto {
   @ApiProperty({
@@ -22,17 +50,17 @@ export class UserResponseDto {
 
   @ApiProperty({
     description: 'The role of the user',
-    enum: $Enums.UserRole,
+    enum: UserRole,
     example: 'USER',
   })
-  role: $Enums.UserRole;
+  role: UserRole;
 
   @ApiProperty({
     description: 'The authentication provider',
-    enum: $Enums.AuthProvider,
+    enum: AuthProvider,
     example: 'EMAIL',
   })
-  provider: $Enums.AuthProvider;
+  provider: AuthProvider;
 
   @ApiProperty({
     description: 'The provider-specific ID (for social auth)',
@@ -53,4 +81,20 @@ export class UserResponseDto {
     example: '2024-03-15T12:00:00.000Z',
   })
   updatedAt: Date;
+
+  @ApiProperty({ type: () => ProfileResponseDto })
+  @Type(() => ProfileResponseDto)
+  profile?: ProfileResponseDto;
+
+  @Exclude()
+  password?: string;
+
+  constructor(user?: User & { profile?: Profile | null }) {
+    if (user) {
+      Object.assign(this, user);
+      if (user.profile) {
+        this.profile = new ProfileResponseDto(user.profile);
+      }
+    }
+  }
 } 

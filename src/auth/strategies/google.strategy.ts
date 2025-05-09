@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy } from 'passport-google-oauth20';
 import { PrismaService } from '../../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { AuthProvider, User } from '.prisma/client';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
@@ -42,13 +42,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         },
         update: {
           providerId: profile.id,
-          provider: 'GOOGLE',
+          provider: AuthProvider.GOOGLE,
+          profileImageUrl: profile.photos?.[0]?.value,
         },
         create: {
           email: profile.emails[0].value,
           name: `${profile.name.givenName} ${profile.name.familyName}`,
           providerId: profile.id,
-          provider: 'GOOGLE',
+          provider: AuthProvider.GOOGLE,
+          profileImageUrl: profile.photos?.[0]?.value,
           profile: {
             create: {
               activityLevel: 'MODERATE',

@@ -10,6 +10,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { Session } from 'express-session';
+import { LoginDto } from '../dto/login.dto';
+import { RequestPasswordResetDto, ResetPasswordDto } from '../dto/password-reset.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { CurrentUser } from '../decorators/current-user.decorator';
 
 export interface IRequestWithUser extends Request {
   user: User;
@@ -47,8 +51,41 @@ export class AuthController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Invalid input data or password requirements not met',
   })
-  public async register(@Body() registerDto: RegisterDto): Promise<User> {
-    return this.registrationService.registerUser(registerDto);
+  public async register(@Body() registerDto: RegisterDto): Promise<UserResponseDto> {
+    return this.registrationService.register(registerDto);
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with email and password' })
+  async login(@Body() loginDto: LoginDto): Promise<{ accessToken: string; refreshToken: string }> {
+    return this.authService.login(loginDto);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout user' })
+  async logout(@Req() req: IRequestWithUser): Promise<void> {
+    req.session.destroy((err) => {
+      if (err) {
+        throw new Error('Failed to destroy session');
+      }
+    });
+  }
+
+  @Post('password-reset-request')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset' })
+  async requestPasswordReset(@Body() dto: RequestPasswordResetDto): Promise<void> {
+    await this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('password-reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with token' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(dto);
   }
 
   /**
@@ -124,5 +161,17 @@ export class AuthController {
   })
   public getSession(@Req() req: IRequestWithUser): { userId: string | undefined } {
     return { userId: req.session.userId };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get current user profile' })
+  @apiResponseDecorator({ 
+    type: UserResponseDto,
+    status: HttpStatus.OK,
+    description: 'Current user profile retrieved successfully'
+  })
+  async getCurrentUser(@CurrentUser() user: User): Promise<UserResponseDto> {
+    return this.authService.getCurrentUser(user.id);
   }
 } 

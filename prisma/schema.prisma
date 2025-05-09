@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/client"
+  engineType = "binary"
 }
 
 datasource db {
@@ -63,6 +63,7 @@ model User {
   role          UserRole    @default(USER)
   provider      AuthProvider @default(EMAIL)
   providerId    String?     // For social auth
+  profileImageUrl String?   // URL to user's profile image from social provider
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 

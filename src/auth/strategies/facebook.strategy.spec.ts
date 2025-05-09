@@ -18,6 +18,7 @@ describe('FacebookStrategy', () => {
     role: UserRole.USER,
     provider: AuthProvider.FACEBOOK,
     providerId: 'facebook-123',
+    profileImageUrl: 'https://example.com/photo.jpg',
     createdAt: new Date(),
     updatedAt: new Date(),
   };

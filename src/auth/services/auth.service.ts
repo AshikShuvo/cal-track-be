@@ -1,7 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../prisma/prisma.service';
 import { User } from '@prisma/client';
-import { IJwtPayload } from '../strategies/jwt.strategy';
+import { LoginDto } from '../dto/login.dto';
+import { ResetPasswordDto } from '../dto/password-reset.dto';
+import { PasswordService } from './password.service';
+import { UserResponseDto } from '../dto/user-response.dto';
 
 export interface IAuthTokens {
   accessToken: string;
@@ -10,39 +15,99 @@ export interface IAuthTokens {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly passwordService: PasswordService,
+  ) {}
 
-  constructor(private readonly jwtService: JwtService) {}
+  async login(loginDto: LoginDto): Promise<IAuthTokens> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: loginDto.email },
+    });
 
-  /**
-   * Generate JWT tokens for a user
-   * @param user - The user to generate tokens for
-   * @returns IAuthTokens - Access and refresh tokens
-   */
-  public async generateTokens(user: User): Promise<IAuthTokens> {
-    const payload: IJwtPayload = {
-      sub: user.id,
-      email: user.email,
-    };
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload),
-      this.jwtService.signAsync(payload, { expiresIn: '7d' }),
-    ]);
+    const isPasswordValid = await this.passwordService.verifyPassword(
+      loginDto.password,
+      user.password,
+    );
 
-    return {
-      accessToken,
-      refreshToken,
-    };
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return this.generateTokens(user);
   }
 
-  /**
-   * Handle successful social authentication
-   * @param user - The authenticated user
-   * @returns IAuthTokens - Access and refresh tokens
-   */
-  public async handleSocialLogin(user: User): Promise<IAuthTokens> {
-    this.logger.log(`Social login successful for user: ${user.email}`);
+  async handleSocialLogin(user: User): Promise<IAuthTokens> {
     return this.generateTokens(user);
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Generate reset token
+    const resetToken = this.jwtService.sign(
+      { sub: user.id },
+      { expiresIn: '15m' },
+    );
+
+    // TODO: Send email with reset token
+    // This would typically integrate with an email service
+    console.log(`Reset token for ${email}: ${resetToken}`);
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    try {
+      const payload = this.jwtService.verify(dto.token);
+      const userId = payload.sub;
+
+      if (dto.password !== dto.passwordConfirm) {
+        throw new UnauthorizedException('Passwords do not match');
+      }
+
+      const hashedPassword = await this.passwordService.hashPassword(dto.password);
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+  }
+
+  async getCurrentUser(userId: string): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return new UserResponseDto(user);
+  }
+
+  private generateTokens(user: User): IAuthTokens {
+    const payload = { sub: user.id, email: user.email };
+
+    return {
+      accessToken: this.jwtService.sign(payload),
+      refreshToken: this.jwtService.sign(payload, {
+        expiresIn: this.configService.get('jwt.refreshExpiresIn'),
+      }),
+    };
   }
 } 

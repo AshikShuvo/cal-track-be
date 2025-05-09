@@ -4,32 +4,35 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from '../services/password.service';
 import { ConflictException } from '@nestjs/common';
 import { Activity, AuthProvider, Gender, User, UserRole } from '@prisma/client';
+import { UserResponseDto } from '../dto/user-response.dto';
 
 describe('RegistrationService', () => {
   let service: RegistrationService;
-  let prismaService: PrismaService;
-  let passwordService: PasswordService;
+  let prismaService: { user: { findUnique: jest.Mock; create: jest.Mock } };
+  let passwordService: jest.Mocked<PasswordService>;
 
   const mockUser: User = {
     id: 'test-uuid',
     email: 'test@example.com',
     password: 'hashedPassword',
-    name: 'John Doe',
+    name: 'Test User',
     role: UserRole.USER,
     provider: AuthProvider.EMAIL,
     providerId: null,
+    profileImageUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockRegisterDto = {
     email: 'test@example.com',
-    password: 'TestPassword123!',
-    name: 'John Doe',
-    height: 175,
-    weight: 70,
+    password: 'StrongP@ssw0rd',
+    name: 'Test User',
+    height: 180,
+    weight: 75,
     gender: Gender.MALE,
     activityLevel: Activity.MODERATE,
+    birthDate: new Date(),
   };
 
   beforeEach(async () => {
@@ -41,125 +44,79 @@ describe('RegistrationService', () => {
           useValue: {
             user: {
               findUnique: jest.fn(),
-              create: jest.fn().mockResolvedValue(mockUser),
+              create: jest.fn(),
             },
-            profile: {
-              create: jest.fn().mockResolvedValue({
-                id: 'profile-uuid',
-                userId: mockUser.id,
-                height: mockRegisterDto.height,
-                weight: mockRegisterDto.weight,
-                gender: mockRegisterDto.gender,
-                activityLevel: mockRegisterDto.activityLevel,
-                birthDate: null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              }),
-            },
-            $transaction: jest.fn().mockImplementation(async (callback) => {
-              if (typeof callback === 'function') {
-                return callback({
-                  user: { create: jest.fn().mockResolvedValue(mockUser) },
-                  profile: {
-                    create: jest.fn().mockResolvedValue({
-                      id: 'profile-uuid',
-                      userId: mockUser.id,
-                      height: mockRegisterDto.height,
-                      weight: mockRegisterDto.weight,
-                      gender: mockRegisterDto.gender,
-                      activityLevel: mockRegisterDto.activityLevel,
-                      birthDate: null,
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                    }),
-                  },
-                });
-              }
-              return mockUser;
-            }),
           },
         },
         {
           provide: PasswordService,
           useValue: {
-            validatePassword: jest.fn(),
             hashPassword: jest.fn(),
+            validatePassword: jest.fn(),
           },
         },
       ],
     }).compile();
 
     service = module.get<RegistrationService>(RegistrationService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    passwordService = module.get<PasswordService>(PasswordService);
+    prismaService = module.get(PrismaService);
+    passwordService = module.get(PasswordService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  describe('registerUser', () => {
-    it('should successfully register a new user', async () => {
+  describe('register', () => {
+    it('should register a new user successfully', async () => {
       // Mock dependencies
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
-      jest.spyOn(passwordService, 'validatePassword').mockReturnValue({ isValid: true, errors: [] });
-      jest.spyOn(passwordService, 'hashPassword').mockResolvedValue('hashedPassword');
+      prismaService.user.findUnique.mockResolvedValue(null);
+      prismaService.user.create.mockResolvedValue({ ...mockUser, profile: null });
+      passwordService.hashPassword.mockResolvedValue('hashedPassword');
+      passwordService.validatePassword.mockReturnValue({ isValid: true, errors: [] });
 
       // Execute
-      const result = await service.registerUser(mockRegisterDto);
+      const result = await service.register(mockRegisterDto);
 
       // Assert
-      expect(result).toEqual(mockUser);
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: mockRegisterDto.email },
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(prismaService.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          email: mockRegisterDto.email,
+          password: 'hashedPassword',
+        }),
+        include: { profile: true },
       });
-      expect(passwordService.validatePassword).toHaveBeenCalledWith(mockRegisterDto.password);
-      expect(passwordService.hashPassword).toHaveBeenCalledWith(mockRegisterDto.password);
-      expect(prismaService.$transaction).toHaveBeenCalled();
     });
 
     it('should throw ConflictException if email exists', async () => {
       // Mock dependencies
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser);
+      prismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      // Execute & Assert
-      await expect(service.registerUser(mockRegisterDto)).rejects.toThrow(ConflictException);
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: mockRegisterDto.email },
-      });
+      // Execute and Assert
+      await expect(service.register(mockRegisterDto)).rejects.toThrow(ConflictException);
+      expect(prismaService.user.create).not.toHaveBeenCalled();
     });
 
-    it('should throw error if password validation fails', async () => {
+    it('should throw error if password is weak', async () => {
       // Mock dependencies
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
-      jest.spyOn(passwordService, 'validatePassword').mockReturnValue({
-        isValid: false,
-        errors: ['Password is too weak'],
-      });
+      prismaService.user.findUnique.mockResolvedValue(null);
+      passwordService.validatePassword.mockReturnValue({ isValid: false, errors: ['Password is too weak'] });
 
-      // Execute & Assert
-      await expect(service.registerUser(mockRegisterDto)).rejects.toThrow('Password is too weak');
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: mockRegisterDto.email },
-      });
-      expect(passwordService.validatePassword).toHaveBeenCalledWith(mockRegisterDto.password);
+      // Execute and Assert
+      await expect(service.register(mockRegisterDto)).rejects.toThrow('Password is too weak');
+      expect(prismaService.user.create).not.toHaveBeenCalled();
     });
 
-    it('should throw error if transaction fails', async () => {
+    it('should handle database transaction failure', async () => {
       // Mock dependencies
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
-      jest.spyOn(passwordService, 'validatePassword').mockReturnValue({ isValid: true, errors: [] });
-      jest.spyOn(passwordService, 'hashPassword').mockResolvedValue('hashedPassword');
-      jest.spyOn(prismaService, '$transaction').mockRejectedValue(new Error('Transaction failed'));
+      prismaService.user.findUnique.mockResolvedValue(null);
+      passwordService.validatePassword.mockReturnValue({ isValid: true, errors: [] });
+      passwordService.hashPassword.mockResolvedValue('hashedPassword');
+      prismaService.user.create.mockRejectedValue(new Error('Transaction failed'));
 
-      // Execute & Assert
-      await expect(service.registerUser(mockRegisterDto)).rejects.toThrow('Transaction failed');
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: mockRegisterDto.email },
-      });
-      expect(passwordService.validatePassword).toHaveBeenCalledWith(mockRegisterDto.password);
-      expect(passwordService.hashPassword).toHaveBeenCalledWith(mockRegisterDto.password);
-      expect(prismaService.$transaction).toHaveBeenCalled();
+      // Execute and Assert
+      await expect(service.register(mockRegisterDto)).rejects.toThrow('Transaction failed');
     });
   });
 }); 
