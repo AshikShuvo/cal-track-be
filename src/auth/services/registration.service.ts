@@ -2,7 +2,7 @@ import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { RegisterDto } from '../dto/register.dto';
-import { User } from '@prisma/client';
+import type { User } from '../../generated/client';
 
 @Injectable()
 export class RegistrationService {
@@ -20,7 +20,7 @@ export class RegistrationService {
    * @throws ConflictException if email already exists
    */
   public async registerUser(registerDto: RegisterDto): Promise<User> {
-    const { password, height, weight, gender, activityLevel, ...userData } = registerDto;
+    const { password, height, weight, gender, activity, ...userData } = registerDto;
 
     // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
@@ -62,7 +62,7 @@ export class RegistrationService {
             height,
             weight,
             gender,
-            activityLevel,
+            activityLevel: activity,
           },
         });
 

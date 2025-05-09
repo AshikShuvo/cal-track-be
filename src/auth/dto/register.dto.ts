@@ -1,24 +1,41 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsNumber, IsString, Matches, MaxLength, MinLength } from 'class-validator';
-import { Activity, Gender } from '@prisma/client';
+import { IsEmail, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { $Enums } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
+  @ApiProperty({
+    description: 'The name of the user',
+    example: 'John Doe',
+    minLength: 2,
+    maxLength: 50,
+  })
   @IsNotEmpty()
   @IsString()
   @MinLength(2)
   @MaxLength(50)
   name: string;
 
+  @ApiProperty({
+    description: 'The email address of the user',
+    example: 'john.doe@example.com',
+    maxLength: 255,
+  })
   @IsNotEmpty()
   @IsEmail()
   @MaxLength(255)
   email: string;
 
+  @ApiProperty({
+    description: 'The password for the account',
+    example: 'StrongP@ss123',
+    minLength: 8,
+    pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$',
+  })
   @IsNotEmpty()
   @IsString()
   @MinLength(8)
-  @MaxLength(32)
   @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$/,
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
     {
       message:
         'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
@@ -26,19 +43,39 @@ export class RegisterDto {
   )
   password: string;
 
-  @IsNotEmpty()
+  @ApiPropertyOptional({
+    description: 'The height of the user in centimeters',
+    example: 175,
+    type: Number,
+  })
   @IsNumber()
-  height: number;
+  @IsOptional()
+  height?: number;
 
-  @IsNotEmpty()
+  @ApiPropertyOptional({
+    description: 'The weight of the user in kilograms',
+    example: 70,
+    type: Number,
+  })
   @IsNumber()
-  weight: number;
+  @IsOptional()
+  weight?: number;
 
-  @IsNotEmpty()
-  @IsEnum(Gender)
-  gender: Gender;
+  @ApiPropertyOptional({
+    description: 'The activity level of the user',
+    enum: $Enums.Activity,
+    example: 'MODERATE',
+  })
+  @IsEnum($Enums.Activity)
+  @IsOptional()
+  activity?: $Enums.Activity;
 
-  @IsNotEmpty()
-  @IsEnum(Activity)
-  activityLevel: Activity;
+  @ApiPropertyOptional({
+    description: 'The gender of the user',
+    enum: $Enums.Gender,
+    example: 'MALE',
+  })
+  @IsEnum($Enums.Gender)
+  @IsOptional()
+  gender?: $Enums.Gender;
 } 
