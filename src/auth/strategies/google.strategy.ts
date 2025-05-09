@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy } from 'passport-google-oauth20';
@@ -7,6 +7,8 @@ import { User } from '@prisma/client';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+  private readonly logger = new Logger(GoogleStrategy.name);
+
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
@@ -24,38 +26,41 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     _refreshToken: string,
     profile: Profile,
   ): Promise<User> {
-    const { id, name, emails } = profile;
+    try {
+      if (!profile.emails?.[0]?.value) {
+        throw new UnauthorizedException('Email not provided by Google');
+      }
 
-    if (!emails?.[0]?.value) {
-      throw new UnauthorizedException('Email not provided by Google');
-    }
+      if (!profile.name?.givenName || !profile.name?.familyName) {
+        throw new UnauthorizedException('Name not provided by Google');
+      }
 
-    if (!name?.givenName || !name?.familyName) {
-      throw new UnauthorizedException('Name not provided by Google');
-    }
-
-    // Find or create user
-    const user = await this.prisma.user.upsert({
-      where: {
-        email: emails[0].value,
-      },
-      update: {
-        providerId: id,
-        provider: 'GOOGLE',
-      },
-      create: {
-        email: emails[0].value,
-        name: `${name.givenName} ${name.familyName}`,
-        providerId: id,
-        provider: 'GOOGLE',
-        profile: {
-          create: {
-            activityLevel: 'MODERATE',
+      // Find or create user
+      const user = await this.prisma.user.upsert({
+        where: {
+          email: profile.emails[0].value,
+        },
+        update: {
+          providerId: profile.id,
+          provider: 'GOOGLE',
+        },
+        create: {
+          email: profile.emails[0].value,
+          name: `${profile.name.givenName} ${profile.name.familyName}`,
+          providerId: profile.id,
+          provider: 'GOOGLE',
+          profile: {
+            create: {
+              activityLevel: 'MODERATE',
+            },
           },
         },
-      },
-    });
+      });
 
-    return user;
+      return user;
+    } catch (error) {
+      this.logger.error(`Failed to validate Google profile: ${error.message}`);
+      throw new UnauthorizedException('Failed to authenticate with Google');
+    }
   }
 } 
