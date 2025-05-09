@@ -59,7 +59,9 @@ async function bootstrap(): Promise<void> {
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  SwaggerModule.setup(`${apiPrefix}/${apiVersion}/docs`, app, document, {
+    useGlobalPrefix: false,
+  });
 
   await app.listen(port);
 }
