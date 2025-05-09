@@ -1,59 +1,64 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AuthProvider } from '@prisma/client';
+import { Role } from '../src/common/enums/role.enum';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt();
+  return bcrypt.hash(password, salt);
+}
+
 async function main(): Promise<void> {
-  // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 10);
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {},
-    create: {
-      email: 'admin@example.com',
-      name: 'Admin User',
-      password: adminPassword,
-      role: 'ADMIN',
-      profile: {
-        create: {
-          height: 175,
-          weight: 70,
-          activityLevel: 'MODERATE',
-          birthDate: new Date('1990-01-01'),
-          gender: 'OTHER',
-        },
-      },
-    },
-  });
+  // Clean the database first
+  await prisma.user.deleteMany();
 
-  // Create moderator user
-  const moderatorPassword = await bcrypt.hash('moderator123', 10);
-  const moderator = await prisma.user.upsert({
-    where: { email: 'moderator@example.com' },
-    update: {},
-    create: {
-      email: 'moderator@example.com',
-      name: 'Moderator User',
-      password: moderatorPassword,
-      role: 'MODERATOR',
-      profile: {
-        create: {
-          height: 165,
-          weight: 60,
-          activityLevel: 'LIGHT',
-          birthDate: new Date('1995-01-01'),
-          gender: 'OTHER',
-        },
-      },
-    },
-  });
+  const defaultPassword = await hashPassword('Password123!');
 
-  console.log({ admin, moderator });
+  // Create users with different roles
+  const users = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'user@example.com',
+        name: 'Regular User',
+        password: defaultPassword,
+        role: Role.USER,
+        provider: AuthProvider.EMAIL,
+        profileImageUrl: null,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'moderator@example.com',
+        name: 'Content Moderator',
+        password: defaultPassword,
+        role: Role.MODERATOR,
+        provider: AuthProvider.EMAIL,
+        profileImageUrl: null,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'admin@example.com',
+        name: 'System Admin',
+        password: defaultPassword,
+        role: Role.ADMIN,
+        provider: AuthProvider.EMAIL,
+        profileImageUrl: null,
+      },
+    }),
+  ]);
+
+  console.log('Database has been seeded with the following users:');
+  users.forEach(user => {
+    console.log(`- ${user.name} (${user.email}) - Role: ${user.role}`);
+  });
+  console.log('\nDefault password for all users: Password123!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Error seeding the database:', e);
     process.exit(1);
   })
   .finally(async () => {
