@@ -139,3 +139,12 @@ This project is licensed under the [MIT License](LICENSE).
 ## Support
 
 For support, email [your-email@example.com](mailto:your-email@example.com) or open an issue in the repository.
+
+## Role Management
+
+The application implements a hierarchical role-based access control system with three levels:
+- USER: Basic access to personal features
+- MODERATOR: Additional access to moderation features
+- ADMIN: Full system access
+
+For detailed documentation on roles and permissions, see the [Role Management Guide](docs/role-management.md).
