@@ -56,7 +56,7 @@ A comprehensive REST API for tracking daily calorie intake with social features 
 
 Once the application is running, you can access the Swagger documentation at:
 ```
-http://localhost:3001/api/docs
+http://localhost:3000/api/v1/docs
 ```
 
 ## Mobile Integration
@@ -102,7 +102,7 @@ src/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| PORT | Application port | 3001 |
+| PORT | Application port | 3000 |
 | NODE_ENV | Environment | development |
 | DATABASE_URL | PostgreSQL connection URL | - |
 | JWT_SECRET | JWT signing key | - |
