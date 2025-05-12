@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FoodUploadService } from './food-upload.service';
 import { StorageService } from '../storage/storage.service';
 import { ChatGptFoodService } from '../ai/chatgpt-food.service';
-import { v4 as uuidv4 } from 'uuid';
 
 jest.mock('uuid', () => ({
   v4: jest.fn().mockReturnValue('c3e9947d-77bc-4138-8e8b-a8ad85c8adcd'),
@@ -10,8 +9,6 @@ jest.mock('uuid', () => ({
 
 describe('FoodUploadService', () => {
   let service: FoodUploadService;
-  let storageService: StorageService;
-  let chatGptFoodService: ChatGptFoodService;
 
   const mockFile = {
     fieldname: 'file',
@@ -49,8 +46,6 @@ describe('FoodUploadService', () => {
     }).compile();
 
     service = module.get<FoodUploadService>(FoodUploadService);
-    storageService = module.get<StorageService>(StorageService);
-    chatGptFoodService = module.get<ChatGptFoodService>(ChatGptFoodService);
     jest.clearAllMocks();
   });
 
