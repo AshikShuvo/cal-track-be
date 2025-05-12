@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { SharedModule } from './shared/shared.module';
 import sessionConfig from './config/session.config';
 import { CommonModule } from './common/common.module';
+import { FoodUploadModule } from './food-upload/food-upload.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { CommonModule } from './common/common.module';
     AuthModule,
     SharedModule,
     CommonModule,
+    FoodUploadModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
