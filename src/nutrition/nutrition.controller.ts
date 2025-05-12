@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { NutritionService } from './nutrition.service';
 import { CreateFoodLogDto } from './dto/create-food-log.dto';
 import { UpdateFoodLogDto } from './dto/update-food-log.dto';
@@ -49,6 +49,7 @@ export class NutritionController {
   @Get('reports/daily')
   @ApiOperation({ summary: 'Get daily nutrition report' })
   @ApiResponse({ status: 200, description: 'Returns daily nutrition report', type: NutritionReportDto })
+  @ApiQuery({ name: 'date', required: true, type: Date, description: 'Date to get report for (YYYY-MM-DD)' })
   getDailyReport(
     @CurrentUser() user: User,
     @Query('date') date: string
@@ -59,11 +60,38 @@ export class NutritionController {
   @Get('reports/monthly')
   @ApiOperation({ summary: 'Get monthly nutrition report' })
   @ApiResponse({ status: 200, description: 'Returns monthly nutrition report', type: NutritionReportDto })
+  @ApiQuery({ name: 'year', required: true, type: Number, description: 'Year to get report for' })
+  @ApiQuery({ name: 'month', required: true, type: Number, description: 'Month to get report for (1-12)' })
   getMonthlyReport(
     @CurrentUser() user: User,
     @Query('year') year: number,
     @Query('month') month: number
   ): Promise<NutritionReportDto> {
     return this.nutritionService.getMonthlyReport(user.id, year, month);
+  }
+
+  @Get('reports/weekly')
+  @ApiOperation({ summary: 'Get weekly nutrition report' })
+  @ApiResponse({ status: 200, description: 'Returns weekly nutrition report', type: NutritionReportDto })
+  @ApiQuery({ name: 'startDate', required: true, type: Date, description: 'Start date of the week (YYYY-MM-DD)' })
+  getWeeklyReport(
+    @CurrentUser() user: User,
+    @Query('startDate') startDate: string
+  ): Promise<NutritionReportDto> {
+    const date = new Date(startDate);
+    return this.nutritionService.getWeeklyReport(user.id, date);
+  }
+
+  @Get('reports/range')
+  @ApiOperation({ summary: 'Get nutrition report for a custom date range' })
+  @ApiResponse({ status: 200, description: 'Returns nutrition report for the specified range', type: NutritionReportDto })
+  @ApiQuery({ name: 'startDate', required: true, type: Date, description: 'Start date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'endDate', required: true, type: Date, description: 'End date (YYYY-MM-DD)' })
+  getRangeReport(
+    @CurrentUser() user: User,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string
+  ): Promise<NutritionReportDto> {
+    return this.nutritionService.getRangeReport(user.id, new Date(startDate), new Date(endDate));
   }
 } 

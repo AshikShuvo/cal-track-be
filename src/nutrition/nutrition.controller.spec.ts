@@ -28,6 +28,8 @@ describe('NutritionController', () => {
     deleteFoodLog: jest.fn(),
     getDailyReport: jest.fn(),
     getMonthlyReport: jest.fn(),
+    getWeeklyReport: jest.fn(),
+    getRangeReport: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -191,6 +193,70 @@ describe('NutritionController', () => {
         mockUser.id,
         mockYear,
         mockMonth,
+      );
+    });
+  });
+
+  describe('getWeeklyReport', () => {
+    it('should return weekly nutrition report', async () => {
+      const mockStartDate = '2024-03-18';
+      const mockReport = {
+        totals: {
+          calories: 5600,
+          protein: 350,
+          carbs: 560,
+          fat: 210,
+        },
+        meals: {
+          [MealType.BREAKFAST]: [],
+          [MealType.LUNCH]: [],
+          [MealType.DINNER]: [],
+          [MealType.SNACK]: [],
+        },
+        foodLogs: [],
+      };
+
+      mockNutritionService.getWeeklyReport.mockResolvedValue(mockReport);
+
+      const result = await controller.getWeeklyReport(mockUser, mockStartDate);
+
+      expect(result).toEqual(mockReport);
+      expect(mockNutritionService.getWeeklyReport).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.any(Date),
+      );
+    });
+  });
+
+  describe('getRangeReport', () => {
+    it('should return nutrition report for a date range', async () => {
+      const mockStartDate = '2024-03-01';
+      const mockEndDate = '2024-03-31';
+      const mockReport = {
+        totals: {
+          calories: 24000,
+          protein: 1500,
+          carbs: 2400,
+          fat: 900,
+        },
+        meals: {
+          [MealType.BREAKFAST]: [],
+          [MealType.LUNCH]: [],
+          [MealType.DINNER]: [],
+          [MealType.SNACK]: [],
+        },
+        foodLogs: [],
+      };
+
+      mockNutritionService.getRangeReport.mockResolvedValue(mockReport);
+
+      const result = await controller.getRangeReport(mockUser, mockStartDate, mockEndDate);
+
+      expect(result).toEqual(mockReport);
+      expect(mockNutritionService.getRangeReport).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.any(Date),
+        expect.any(Date),
       );
     });
   });

@@ -60,12 +60,15 @@ describe('ChatGptFoodService', () => {
             message: {
               content: JSON.stringify({
                 name: 'Pizza',
-                ingredients: ['dough', 'cheese', 'tomato sauce'],
+                portion: 200,
                 nutrition: {
                   calories: 300,
                   protein: 12,
                   carbs: 35,
                   fat: 15,
+                  fiber: 2,
+                  sugar: 3,
+                  sodium: 500,
                 },
               }),
             },
@@ -76,12 +79,15 @@ describe('ChatGptFoodService', () => {
       const result = await service.analyzeFoodImage(mockImageBuffer);
       expect(result).toEqual({
         name: 'Pizza',
-        ingredients: ['dough', 'cheese', 'tomato sauce'],
+        portion: 200,
         nutrition: {
           calories: 300,
           protein: 12,
           carbs: 35,
           fat: 15,
+          fiber: 2,
+          sugar: 3,
+          sodium: 500,
         },
       });
     });
@@ -90,8 +96,8 @@ describe('ChatGptFoodService', () => {
       mockConfigService.get.mockReturnValueOnce(null);
       const result = await service.analyzeFoodImage(mockImageBuffer);
       expect(result).toEqual({
-        code: 'API_ERROR',
-        message: 'OpenAI API key not configured',
+        code: 'ANALYSIS_ERROR',
+        message: 'Failed to analyze food image',
       });
     });
 
@@ -108,8 +114,8 @@ describe('ChatGptFoodService', () => {
       mockCreate.mockResolvedValueOnce(mockResponse);
       const result = await service.analyzeFoodImage(mockImageBuffer);
       expect(result).toEqual({
-        code: 'PARSE_ERROR',
-        message: 'Could not parse the analysis response',
+        code: 'ANALYSIS_ERROR',
+        message: 'Failed to analyze food image',
       });
     });
 
@@ -129,8 +135,8 @@ describe('ChatGptFoodService', () => {
       mockCreate.mockResolvedValueOnce(mockResponse);
       const result = await service.analyzeFoodImage(mockImageBuffer);
       expect(result).toEqual({
-        code: 'INVALID_RESPONSE',
-        message: 'Invalid analysis response structure',
+        code: 'ANALYSIS_ERROR',
+        message: 'Failed to analyze food image',
       });
     });
 
@@ -138,8 +144,8 @@ describe('ChatGptFoodService', () => {
       mockCreate.mockRejectedValueOnce(new Error('API Error'));
       const result = await service.analyzeFoodImage(mockImageBuffer);
       expect(result).toEqual({
-        code: 'API_ERROR',
-        message: 'API Error',
+        code: 'ANALYSIS_ERROR',
+        message: 'Failed to analyze food image',
       });
     });
   });

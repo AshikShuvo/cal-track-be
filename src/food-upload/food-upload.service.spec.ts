@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FoodUploadService } from './food-upload.service';
 import { StorageService } from '../storage/storage.service';
 import { ChatGptFoodService } from '../ai/chatgpt-food.service';
+import { MealType } from '../common/enums/meal-type.enum';
+import { PrismaService } from '../prisma/prisma.service';
 
 jest.mock('uuid', () => ({
   v4: jest.fn().mockReturnValue('c3e9947d-77bc-4138-8e8b-a8ad85c8adcd'),
@@ -9,6 +11,8 @@ jest.mock('uuid', () => ({
 
 describe('FoodUploadService', () => {
   let service: FoodUploadService;
+  const mockUserId = 'user-123';
+  const mockMealType = MealType.BREAKFAST;
 
   const mockFile = {
     fieldname: 'file',
@@ -30,6 +34,12 @@ describe('FoodUploadService', () => {
     analyzeFoodImage: jest.fn(),
   };
 
+  const mockPrismaService = {
+    foodLog: {
+      create: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -41,6 +51,10 @@ describe('FoodUploadService', () => {
         {
           provide: ChatGptFoodService,
           useValue: mockChatGptFoodService,
+        },
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
         },
       ],
     }).compile();
@@ -67,7 +81,12 @@ describe('FoodUploadService', () => {
     const storageResult = { fileId: 'abc', url: 'http://localhost/abc.jpg' };
     mockChatGptFoodService.analyzeFoodImage.mockResolvedValueOnce(analysisResult);
     mockStorageService.uploadFile.mockResolvedValueOnce(storageResult);
-    const result = await service.handleUpload(mockFile);
+    mockPrismaService.foodLog.create.mockResolvedValueOnce({
+      id: 'food-123',
+      ...analysisResult,
+    });
+
+    const result = await service.handleUpload(mockFile, mockUserId, mockMealType);
     expect(mockChatGptFoodService.analyzeFoodImage).toHaveBeenCalledWith(mockFile.buffer);
     expect(mockStorageService.uploadFile).toHaveBeenCalledWith({
       ...mockFile,
@@ -77,13 +96,14 @@ describe('FoodUploadService', () => {
       success: true,
       storage: storageResult,
       analysis: analysisResult,
+      foodLogId: 'food-123',
     });
   });
 
   it('should return error if analysis fails', async () => {
     const errorResult = { code: 'NO_ANALYSIS', message: 'Could not analyze' };
     mockChatGptFoodService.analyzeFoodImage.mockResolvedValueOnce(errorResult);
-    const result = await service.handleUpload(mockFile);
+    const result = await service.handleUpload(mockFile, mockUserId, mockMealType);
     expect(result).toEqual({
       success: false,
       error: errorResult,

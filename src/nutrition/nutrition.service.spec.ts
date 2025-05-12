@@ -15,6 +15,9 @@ describe('NutritionService', () => {
       delete: jest.fn(),
       findMany: jest.fn(),
     },
+    goal: {
+      findFirst: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -119,12 +122,15 @@ describe('NutritionService', () => {
         fiber: 0,
         sugar: 0,
         sodium: 0,
+        proteinPercentage: 25,
+        carbsPercentage: 40,
+        fatPercentage: 33.75,
       });
 
-      expect(result.meals[MealType.BREAKFAST]).toHaveLength(1);
-      expect(result.meals[MealType.LUNCH]).toHaveLength(1);
-      expect(result.meals[MealType.DINNER]).toHaveLength(0);
-      expect(result.meals[MealType.SNACK]).toHaveLength(0);
+      expect(result.meals[MealType.BREAKFAST].itemCount).toBe(1);
+      expect(result.meals[MealType.LUNCH].itemCount).toBe(1);
+      expect(result.meals[MealType.DINNER].itemCount).toBe(0);
+      expect(result.meals[MealType.SNACK].itemCount).toBe(0);
 
       expect(mockPrismaService.foodLog.findMany).toHaveBeenCalledWith({
         where: {
@@ -173,7 +179,15 @@ describe('NutritionService', () => {
         fiber: 0,
         sugar: 0,
         sodium: 0,
+        proteinPercentage: 26.666666666666668,
+        carbsPercentage: 40,
+        fatPercentage: 30,
       });
+
+      expect(result.meals[MealType.BREAKFAST].itemCount).toBe(1);
+      expect(result.meals[MealType.LUNCH].itemCount).toBe(0);
+      expect(result.meals[MealType.DINNER].itemCount).toBe(0);
+      expect(result.meals[MealType.SNACK].itemCount).toBe(0);
 
       expect(mockPrismaService.foodLog.findMany).toHaveBeenCalledWith({
         where: {
@@ -187,6 +201,179 @@ describe('NutritionService', () => {
           nutrition: true,
         },
       });
+    });
+  });
+
+  describe('getWeeklyReport', () => {
+    const mockUserId = 'user-123';
+    const mockStartDate = new Date('2024-03-18');
+    const mockFoodLogs = [
+      {
+        id: 'food-1',
+        name: 'Breakfast',
+        mealType: MealType.BREAKFAST,
+        nutrition: {
+          calories: 300,
+          protein: 20,
+          carbs: 30,
+          fat: 10,
+        },
+      },
+      {
+        id: 'food-2',
+        name: 'Lunch',
+        mealType: MealType.LUNCH,
+        nutrition: {
+          calories: 500,
+          protein: 30,
+          carbs: 50,
+          fat: 20,
+        },
+      },
+    ];
+
+    const mockGoals = {
+      id: 'goal-1',
+      userId: mockUserId,
+      calories: 2000,
+      protein: 150,
+      carbs: 200,
+      fat: 70,
+    };
+
+    it('should return aggregated nutrition data for a week', async () => {
+      mockPrismaService.foodLog.findMany.mockResolvedValue(mockFoodLogs);
+      mockPrismaService.goal.findFirst.mockResolvedValue(mockGoals);
+
+      const result = await service.getWeeklyReport(mockUserId, mockStartDate);
+
+      expect(result.totals).toEqual({
+        calories: 800,
+        protein: 50,
+        carbs: 80,
+        fat: 30,
+        fiber: 0,
+        sugar: 0,
+        sodium: 0,
+        proteinPercentage: 25,
+        carbsPercentage: 40,
+        fatPercentage: 33.75,
+      });
+
+      expect(result.meals[MealType.BREAKFAST].itemCount).toBe(1);
+      expect(result.meals[MealType.LUNCH].itemCount).toBe(1);
+      expect(result.meals[MealType.DINNER].itemCount).toBe(0);
+      expect(result.meals[MealType.SNACK].itemCount).toBe(0);
+
+      expect(mockPrismaService.foodLog.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: mockUserId,
+          consumedAt: {
+            gte: expect.any(Date),
+            lte: expect.any(Date),
+          },
+        },
+        include: {
+          nutrition: true,
+        },
+      });
+    });
+
+    it('should handle case when no goals are set', async () => {
+      mockPrismaService.foodLog.findMany.mockResolvedValue(mockFoodLogs);
+      mockPrismaService.goal.findFirst.mockResolvedValue(null);
+
+      const result = await service.getWeeklyReport(mockUserId, mockStartDate);
+
+      expect(result.totals).toBeDefined();
+      expect(result.targetComparison).toBeUndefined();
+    });
+  });
+
+  describe('getRangeReport', () => {
+    const mockUserId = 'user-123';
+    const mockStartDate = new Date('2024-03-01');
+    const mockEndDate = new Date('2024-03-31');
+    const mockFoodLogs = [
+      {
+        id: 'food-1',
+        name: 'Breakfast',
+        mealType: MealType.BREAKFAST,
+        nutrition: {
+          calories: 300,
+          protein: 20,
+          carbs: 30,
+          fat: 10,
+        },
+      },
+      {
+        id: 'food-2',
+        name: 'Lunch',
+        mealType: MealType.LUNCH,
+        nutrition: {
+          calories: 500,
+          protein: 30,
+          carbs: 50,
+          fat: 20,
+        },
+      },
+    ];
+
+    const mockGoals = {
+      id: 'goal-1',
+      userId: mockUserId,
+      calories: 2000,
+      protein: 150,
+      carbs: 200,
+      fat: 70,
+    };
+
+    it('should return aggregated nutrition data for a date range', async () => {
+      mockPrismaService.foodLog.findMany.mockResolvedValue(mockFoodLogs);
+      mockPrismaService.goal.findFirst.mockResolvedValue(mockGoals);
+
+      const result = await service.getRangeReport(mockUserId, mockStartDate, mockEndDate);
+
+      expect(result.totals).toEqual({
+        calories: 800,
+        protein: 50,
+        carbs: 80,
+        fat: 30,
+        fiber: 0,
+        sugar: 0,
+        sodium: 0,
+        proteinPercentage: 25,
+        carbsPercentage: 40,
+        fatPercentage: 33.75,
+      });
+
+      expect(result.meals[MealType.BREAKFAST].itemCount).toBe(1);
+      expect(result.meals[MealType.LUNCH].itemCount).toBe(1);
+      expect(result.meals[MealType.DINNER].itemCount).toBe(0);
+      expect(result.meals[MealType.SNACK].itemCount).toBe(0);
+
+      expect(mockPrismaService.foodLog.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: mockUserId,
+          consumedAt: {
+            gte: mockStartDate,
+            lte: mockEndDate,
+          },
+        },
+        include: {
+          nutrition: true,
+        },
+      });
+    });
+
+    it('should handle case when no goals are set', async () => {
+      mockPrismaService.foodLog.findMany.mockResolvedValue(mockFoodLogs);
+      mockPrismaService.goal.findFirst.mockResolvedValue(null);
+
+      const result = await service.getRangeReport(mockUserId, mockStartDate, mockEndDate);
+
+      expect(result.totals).toBeDefined();
+      expect(result.targetComparison).toBeUndefined();
     });
   });
 }); 
