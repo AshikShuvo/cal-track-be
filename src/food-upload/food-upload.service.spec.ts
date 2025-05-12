@@ -2,6 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FoodUploadService } from './food-upload.service';
 import { StorageService } from '../storage/storage.service';
 import { ChatGptFoodService } from '../ai/chatgpt-food.service';
+import { v4 as uuidv4 } from 'uuid';
+
+jest.mock('uuid', () => ({
+  v4: jest.fn().mockReturnValue('c3e9947d-77bc-4138-8e8b-a8ad85c8adcd'),
+}));
 
 describe('FoodUploadService', () => {
   let service: FoodUploadService;
@@ -69,7 +74,10 @@ describe('FoodUploadService', () => {
     mockStorageService.uploadFile.mockResolvedValueOnce(storageResult);
     const result = await service.handleUpload(mockFile);
     expect(mockChatGptFoodService.analyzeFoodImage).toHaveBeenCalledWith(mockFile.buffer);
-    expect(mockStorageService.uploadFile).toHaveBeenCalledWith(mockFile);
+    expect(mockStorageService.uploadFile).toHaveBeenCalledWith({
+      ...mockFile,
+      path: '/home/bs-01474/personal/cal-track-be/temp/c3e9947d-77bc-4138-8e8b-a8ad85c8adcd.jpg',
+    });
     expect(result).toEqual({
       success: true,
       storage: storageResult,
